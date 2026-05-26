@@ -1,4 +1,4 @@
-const API = 'http://127.0.0.1:8000';
+const API = 'https://biometric-auth-03ew.onrender.com';
 let currentUser = null;
 
 function showScreen(id) {
