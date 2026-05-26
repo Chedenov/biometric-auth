@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biometric Auth</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Экран входа -->
+        <div id="screen-login" class="screen active">
+            <div class="logo">
+                <div class="logo-icon">🔐</div>
+                <h1>BiometricAuth</h1>
+                <p>Безопасный вход через Face ID</p>
+            </div>
+            <div class="card">
+                <input type="text" id="login-username" placeholder="Имя пользователя" class="input">
+                <button onclick="loginBegin()" class="btn btn-primary">
+                    <span>😊</span> Войти через Face ID
+                </button>
+                <div class="divider">или</div>
+                <button onclick="showScreen('screen-register')" class="btn btn-secondary">
+                    Создать аккаунт
+                </button>
+            </div>
+        </div>
+
+        <!-- Экран регистрации -->
+        <div id="screen-register" class="screen">
+            <div class="logo">
+                <div class="logo-icon">✨</div>
+                <h1>Регистрация</h1>
+                <p>Создайте аккаунт с биометрией</p>
+            </div>
+            <div class="card">
+                <input type="text" id="reg-username" placeholder="Имя пользователя" class="input">
+                <input type="email" id="reg-email" placeholder="Email" class="input">
+                <button onclick="registerBegin()" class="btn btn-primary">
+                    <span>🔒</span> Зарегистрироваться
+                </button>
+                <div class="divider">или</div>
+                <button onclick="showScreen('screen-login')" class="btn btn-secondary">
+                    Уже есть аккаунт
+                </button>
+            </div>
+        </div>
+
+        <!-- Экран дашборда -->
+        <div id="screen-dashboard" class="screen">
+            <div class="dashboard-header">
+                <div class="avatar">👤</div>
+                <div>
+                    <h2 id="dash-username">Пользователь</h2>
+                    <p id="dash-email">email@example.com</p>
+                </div>
+                <button onclick="logout()" class="btn-logout">Выйти</button>
+            </div>
+            <div class="status-card success">
+                <span>✅</span>
+                <span>Аутентификация успешна</span>
+            </div>
+            <div class="card">
+                <h3>История входов</h3>
+                <div id="logs-list"></div>
+            </div>
+        </div>
+
+        <!-- Уведомление -->
+        <div id="toast" class="toast"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
