@@ -1,14 +1,27 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import database
-import json
 import os
 import base64
+import time
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Временное хранилище challenge (в продакшне — Redis)
+# challenge + время создания
 challenges = {}
+
+def set_challenge(username: str, challenge: str):
+    challenges[username] = {"challenge": challenge, "created_at": time.time()}
+
+def get_challenge(username: str):
+    data = challenges.get(username)
+    if not data:
+        return None
+    # Удаляем если старше 5 минут
+    if time.time() - data["created_at"] > 300:
+        del challenges[username]
+        return None
+    return data["challenge"]
 
 class RegisterBeginRequest(BaseModel):
     username: str
@@ -36,14 +49,14 @@ async def register_begin(req: RegisterBeginRequest):
     existing = await database.get_user_by_username(req.username)
     if existing and existing.get("credential_id"):
         raise HTTPException(status_code=400, detail="Пользователь уже зарегистрирован")
-    
+
     if not existing:
         user_id = await database.create_user(req.username, req.email)
     else:
         user_id = existing["id"]
 
     challenge = base64.b64encode(os.urandom(32)).decode()
-    challenges[req.username] = challenge
+    set_challenge(req.username, challenge)
 
     return {
         "challenge": challenge,
@@ -54,9 +67,10 @@ async def register_begin(req: RegisterBeginRequest):
 
 @router.post("/register/complete")
 async def register_complete(req: RegisterCompleteRequest):
-    if req.username not in challenges:
+    challenge = get_challenge(req.username)
+    if not challenge:
         raise HTTPException(status_code=400, detail="Сначала начните регистрацию")
-    
+
     user = await database.get_user_by_username(req.username)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -67,10 +81,10 @@ async def register_complete(req: RegisterCompleteRequest):
         req.public_key,
         0
     )
-    
+
     del challenges[req.username]
     await database.log_event(user["id"], "register", True)
-    
+
     return {"status": "ok", "message": "Регистрация успешна"}
 
 @router.post("/login/begin")
@@ -80,7 +94,7 @@ async def login_begin(req: LoginBeginRequest):
         raise HTTPException(status_code=404, detail="Пользователь не найден или не зарегистрирован")
 
     challenge = base64.b64encode(os.urandom(32)).decode()
-    challenges[req.username] = challenge
+    set_challenge(req.username, challenge)
 
     return {
         "challenge": challenge,
@@ -89,7 +103,8 @@ async def login_begin(req: LoginBeginRequest):
 
 @router.post("/login/complete")
 async def login_complete(req: LoginCompleteRequest):
-    if req.username not in challenges:
+    challenge = get_challenge(req.username)
+    if not challenge:
         raise HTTPException(status_code=400, detail="Сначала начните вход")
 
     user = await database.get_user_by_username(req.username)

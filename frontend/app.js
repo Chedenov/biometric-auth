@@ -13,10 +13,26 @@ function showToast(msg, type = '') {
     setTimeout(() => toast.className = 'toast', 3000);
 }
 
+// Конвертация base64 → Uint8Array (с поддержкой base64url)
+function base64ToUint8Array(base64) {
+    const base64url = base64.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64url.padEnd(base64url.length + (4 - base64url.length % 4) % 4, '=');
+    const binary = atob(padded);
+    return Uint8Array.from(binary, c => c.charCodeAt(0));
+}
+
+// Конвертация ArrayBuffer → base64
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    return btoa(binary);
+}
+
 async function registerBegin() {
     const username = document.getElementById('reg-username').value.trim();
     const email = document.getElementById('reg-email').value.trim();
-    
+
     if (!username || !email) {
         showToast('Заполните все поля', 'error');
         return;
@@ -31,13 +47,12 @@ async function registerBegin() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail);
 
-        // Запускаем WebAuthn
         const credential = await navigator.credentials.create({
             publicKey: {
-                challenge: Uint8Array.from(atob(data.challenge), c => c.charCodeAt(0)),
-               rp: { name: "BiometricAuth" },
+                challenge: base64ToUint8Array(data.challenge),
+                rp: { name: "BiometricAuth" },
                 user: {
-                    id: Uint8Array.from(String(data.user_id), c => c.charCodeAt(0)),
+                    id: new TextEncoder().encode(String(data.user_id)),
                     name: username,
                     displayName: username
                 },
@@ -53,16 +68,20 @@ async function registerBegin() {
             }
         });
 
-        // Отправляем на сервер
-        const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
-        const clientData = btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)));
-        const attestation = btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject)));
-        const pubKey = btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject)));
+        const credId = arrayBufferToBase64(credential.rawId);
+        const clientData = arrayBufferToBase64(credential.response.clientDataJSON);
+        const attestation = arrayBufferToBase64(credential.response.attestationObject);
 
         const res2 = await fetch(`${API}/auth/register/complete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, credential_id: credId, public_key: pubKey, client_data: clientData, attestation })
+            body: JSON.stringify({
+                username,
+                credential_id: credId,
+                public_key: attestation,
+                client_data: clientData,
+                attestation
+            })
         });
         const data2 = await res2.json();
         if (!res2.ok) throw new Error(data2.detail);
@@ -71,6 +90,7 @@ async function registerBegin() {
         setTimeout(() => showScreen('screen-login'), 1500);
 
     } catch (e) {
+        console.error(e);
         showToast(e.message || 'Ошибка регистрации', 'error');
     }
 }
@@ -91,25 +111,33 @@ async function loginBegin() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail);
 
-        // Запускаем WebAuthn
-        const credId = Uint8Array.from(atob(data.credential_id), c => c.charCodeAt(0));
         const assertion = await navigator.credentials.get({
             publicKey: {
-                challenge: Uint8Array.from(atob(data.challenge), c => c.charCodeAt(0)),
-                allowCredentials: [{ type: "public-key", id: credId }],
+                challenge: base64ToUint8Array(data.challenge),
+                allowCredentials: [{
+                    type: "public-key",
+                    id: base64ToUint8Array(data.credential_id)
+                }],
                 userVerification: "required",
                 timeout: 60000,
             }
         });
 
-        const clientData = btoa(String.fromCharCode(...new Uint8Array(assertion.response.clientDataJSON)));
-        const authData = btoa(String.fromCharCode(...new Uint8Array(assertion.response.authenticatorData)));
-        const signature = btoa(String.fromCharCode(...new Uint8Array(assertion.response.signature)));
+        const clientData = arrayBufferToBase64(assertion.response.clientDataJSON);
+        const authData = arrayBufferToBase64(assertion.response.authenticatorData);
+        const signature = arrayBufferToBase64(assertion.response.signature);
+        const credId = arrayBufferToBase64(assertion.rawId);
 
         const res2 = await fetch(`${API}/auth/login/complete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, credential_id: btoa(String.fromCharCode(...new Uint8Array(assertion.rawId))), client_data: clientData, authenticator_data: authData, signature })
+            body: JSON.stringify({
+                username,
+                credential_id: credId,
+                client_data: clientData,
+                authenticator_data: authData,
+                signature
+            })
         });
         const data2 = await res2.json();
         if (!res2.ok) throw new Error(data2.detail);
@@ -118,6 +146,7 @@ async function loginBegin() {
         showDashboard();
 
     } catch (e) {
+        console.error(e);
         showToast(e.message || 'Ошибка входа', 'error');
     }
 }
