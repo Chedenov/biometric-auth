@@ -13,7 +13,13 @@ function showToast(msg, type = '') {
     setTimeout(() => toast.className = 'toast', 3000);
 }
 
-// Конвертация base64 → Uint8Array (с поддержкой base64url)
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+
 function base64ToUint8Array(base64) {
     const base64url = base64.replace(/-/g, '+').replace(/_/g, '/');
     const padded = base64url.padEnd(base64url.length + (4 - base64url.length % 4) % 4, '=');
@@ -21,7 +27,6 @@ function base64ToUint8Array(base64) {
     return Uint8Array.from(binary, c => c.charCodeAt(0));
 }
 
-// Конвертация ArrayBuffer → base64
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -154,24 +159,120 @@ async function loginBegin() {
 async function showDashboard() {
     document.getElementById('dash-username').textContent = currentUser.username;
     document.getElementById('dash-email').textContent = currentUser.email;
+    showScreen('screen-dashboard');
+    loadTasks();
+    loadNotes();
+    loadLogs();
+}
 
+// ЗАДАЧИ
+async function loadTasks() {
+    const res = await fetch(`${API}/notes/tasks/get/${currentUser.username}`);
+    const data = await res.json();
+    const list = document.getElementById('tasks-list');
+    if (data.tasks.length === 0) {
+        list.innerHTML = '<p class="empty">Задач пока нет</p>';
+        return;
+    }
+    list.innerHTML = data.tasks.map(task => `
+        <div class="task-item">
+            <div class="task-check ${task.done ? 'done' : ''}" onclick="toggleTask(${task.id})">
+                ${task.done ? '✓' : ''}
+            </div>
+            <span class="task-title ${task.done ? 'done' : ''}">${task.title}</span>
+            <button class="task-delete" onclick="deleteTask(${task.id})">🗑</button>
+        </div>
+    `).join('');
+}
+
+async function addTask() {
+    const input = document.getElementById('task-input');
+    const title = input.value.trim();
+    if (!title) return;
+
+    await fetch(`${API}/notes/tasks/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser.username, title })
+    });
+    input.value = '';
+    loadTasks();
+}
+
+async function toggleTask(id) {
+    await fetch(`${API}/notes/tasks/toggle/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser.username })
+    });
+    loadTasks();
+}
+
+async function deleteTask(id) {
+    await fetch(`${API}/notes/tasks/delete/${id}?username=${currentUser.username}`, {
+        method: 'DELETE'
+    });
+    loadTasks();
+}
+
+// ЗАМЕТКИ
+async function loadNotes() {
+    const res = await fetch(`${API}/notes/get/${currentUser.username}`);
+    const data = await res.json();
+    const list = document.getElementById('notes-list');
+    if (data.notes.length === 0) {
+        list.innerHTML = '<p class="empty">Заметок пока нет</p>';
+        return;
+    }
+    list.innerHTML = data.notes.map(note => `
+        <div class="note-item">
+            <div class="note-header">
+                <span class="note-time">${new Date(note.created_at).toLocaleString('ru')}</span>
+                <button class="note-delete" onclick="deleteNote(${note.id})">🗑</button>
+            </div>
+            <div>${note.content}</div>
+        </div>
+    `).join('');
+}
+
+async function addNote() {
+    const input = document.getElementById('note-input');
+    const content = input.value.trim();
+    if (!content) return;
+
+    await fetch(`${API}/notes/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser.username, content })
+    });
+    input.value = '';
+    loadNotes();
+    showToast('Заметка сохранена!', 'success');
+}
+
+async function deleteNote(id) {
+    await fetch(`${API}/notes/delete/${id}?username=${currentUser.username}`, {
+        method: 'DELETE'
+    });
+    loadNotes();
+}
+
+// ЛОГИ
+async function loadLogs() {
     const res = await fetch(`${API}/users/logs/${currentUser.username}`);
     const data = await res.json();
-
     const list = document.getElementById('logs-list');
     if (data.logs.length === 0) {
-        list.innerHTML = '<p style="color:#4b5563;font-size:14px">История пуста</p>';
-    } else {
-        list.innerHTML = data.logs.map(log => `
-            <div class="log-item">
-                <span class="log-icon">${log.event === 'login' ? '🔓' : '✨'}</span>
-                <span class="log-text">${log.event === 'login' ? 'Вход' : 'Регистрация'}</span>
-                <span class="log-time">${new Date(log.timestamp).toLocaleString('ru')}</span>
-            </div>
-        `).join('');
+        list.innerHTML = '<p class="empty">История пуста</p>';
+        return;
     }
-
-    showScreen('screen-dashboard');
+    list.innerHTML = data.logs.map(log => `
+        <div class="log-item">
+            <span>${log.event === 'login' ? '🔓' : '✨'}</span>
+            <span class="log-text">${log.event === 'login' ? 'Вход' : 'Регистрация'}</span>
+            <span class="log-time">${new Date(log.timestamp).toLocaleString('ru')}</span>
+        </div>
+    `).join('');
 }
 
 function logout() {
@@ -179,3 +280,10 @@ function logout() {
     showScreen('screen-login');
     showToast('Вы вышли из системы');
 }
+
+// Enter для добавления задачи
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('task-input')?.addEventListener('keypress', e => {
+        if (e.key === 'Enter') addTask();
+    });
+});

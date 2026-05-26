@@ -19,8 +19,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from routers import auth, users
+from routers import auth, users, notes
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(notes.router)
 
 app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")

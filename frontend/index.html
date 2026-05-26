@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biometric Auth</title>
+    <title>BiometricAuth</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -47,7 +47,7 @@
             </div>
         </div>
 
-        <!-- Экран дашборда -->
+        <!-- Дашборд -->
         <div id="screen-dashboard" class="screen">
             <div class="dashboard-header">
                 <div class="avatar">👤</div>
@@ -57,17 +57,48 @@
                 </div>
                 <button onclick="logout()" class="btn-logout">Выйти</button>
             </div>
+
             <div class="status-card success">
                 <span>✅</span>
-                <span>Аутентификация успешна</span>
+                <span>Аутентификация через Face ID успешна</span>
             </div>
-            <div class="card">
-                <h3>История входов</h3>
-                <div id="logs-list"></div>
+
+            <!-- Табы -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('tasks')">📋 Задачи</button>
+                <button class="tab" onclick="switchTab('notes')">📝 Заметки</button>
+                <button class="tab" onclick="switchTab('logs')">🕐 История</button>
+            </div>
+
+            <!-- Задачи -->
+            <div id="tab-tasks" class="tab-content active">
+                <div class="card">
+                    <div class="input-row">
+                        <input type="text" id="task-input" placeholder="Новая задача..." class="input">
+                        <button onclick="addTask()" class="btn-add">+</button>
+                    </div>
+                    <div id="tasks-list"></div>
+                </div>
+            </div>
+
+            <!-- Заметки -->
+            <div id="tab-notes" class="tab-content">
+                <div class="card">
+                    <textarea id="note-input" placeholder="Напишите заметку..." class="textarea"></textarea>
+                    <button onclick="addNote()" class="btn btn-primary">Сохранить заметку</button>
+                    <div id="notes-list"></div>
+                </div>
+            </div>
+
+            <!-- История -->
+            <div id="tab-logs" class="tab-content">
+                <div class="card">
+                    <h3>История входов</h3>
+                    <div id="logs-list"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Уведомление -->
         <div id="toast" class="toast"></div>
     </div>
     <script src="app.js"></script>
