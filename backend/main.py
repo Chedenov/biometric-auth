@@ -23,6 +23,4 @@ from routers import auth, users
 app.include_router(auth.router)
 app.include_router(users.router)
 
-@app.get("/")
-async def root():
-    return {"status": "ok"}
+app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")
