@@ -57,7 +57,7 @@ async function registerBegin() {
         const credId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
         const clientData = btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)));
         const attestation = btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject)));
-        const pubKey = btoa(String.fromCharCode(...new Uint8Array(credential.response.getPublicKey())));
+        const pubKey = btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject)));
 
         const res2 = await fetch(`${API}/auth/register/complete`, {
             method: 'POST',
